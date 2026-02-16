@@ -32,6 +32,42 @@ const BALTIC_OVERRIDES = {
 };
 
 // =====================================================
+// MINIMUM WAGES (2025) - Monthly gross in EUR
+// Source: Eurostat + national sources
+// Updated: January 2025
+// Note: Some countries have no statutory minimum wage
+// =====================================================
+const MINIMUM_WAGES = {
+  AT: { monthly: null, annual: null, note: 'Collective agreements (~€1,850/mo)' },
+  BE: { monthly: 1994, annual: 23928 },
+  BG: { monthly: 477, annual: 5724 },
+  HR: { monthly: 840, annual: 10080 },
+  CY: { monthly: 1000, annual: 12000, note: 'Since 2023' },
+  CZ: { monthly: 700, annual: 8400 },
+  DK: { monthly: null, annual: null, note: 'Collective agreements (~€3,000/mo)' },
+  EE: { monthly: 886, annual: 10632 },
+  FI: { monthly: null, annual: null, note: 'Collective agreements' },
+  FR: { monthly: 1802, annual: 21624 },
+  DE: { monthly: 2054, annual: 24648, note: '€12.82/hr' },
+  EL: { monthly: 910, annual: 10920 },
+  HU: { monthly: 675, annual: 8100 },
+  IE: { monthly: 2146, annual: 25752, note: '€13.50/hr' },
+  IT: { monthly: null, annual: null, note: 'Collective agreements' },
+  LV: { monthly: 700, annual: 8400 },
+  LT: { monthly: 924, annual: 11088 },
+  LU: { monthly: 2571, annual: 30852, note: 'Highest in EU' },
+  MT: { monthly: 835, annual: 10020 },
+  NL: { monthly: 2070, annual: 24840, note: '€13.68/hr' },
+  PL: { monthly: 1012, annual: 12144 },
+  PT: { monthly: 956, annual: 11472 },
+  RO: { monthly: 606, annual: 7272 },
+  SK: { monthly: 816, annual: 9792 },
+  SI: { monthly: 1253, annual: 15036 },
+  ES: { monthly: 1323, annual: 15876 },
+  SE: { monthly: null, annual: null, note: 'Collective agreements' }
+};
+
+// =====================================================
 // EU COUNTRY CODES (OECD uses ISO 3166-1 alpha-3)
 // =====================================================
 const EU_COUNTRY_MAPPING = {
@@ -308,40 +344,48 @@ export async function GET() {
     }
   });
   
-  // Apply Baltic overrides (fresher data from national statistics)
+  // Apply Baltic overrides
+  const salarySource = {};
+  Object.keys(avgSalary).forEach(code => {
+    salarySource[code] = 'OECD';
+  });
+  
   Object.entries(BALTIC_OVERRIDES).forEach(([code, data]) => {
     avgSalary[code] = { 
       ...avgSalary[code],
       [data.period]: data.avgSalary 
     };
+    salarySource[code] = data.source;
   });
   
-  // Create median salary estimates (typically ~80% of average for EU)
+  // Create median salary estimates
   const medSalary = {};
   Object.entries(avgSalary).forEach(([code, years]) => {
     medSalary[code] = {};
     Object.entries(years).forEach(([year, value]) => {
-      // Use Baltic overrides if available
       if (BALTIC_OVERRIDES[code]) {
         medSalary[code][year] = BALTIC_OVERRIDES[code].medSalary;
       } else {
-        medSalary[code][year] = Math.round(value * 0.82); // Approximate median
+        medSalary[code][year] = Math.round(value * 0.82);
       }
     });
   });
   
-  // Build response with metadata
+  // Build response
   const response = {
     unemployment,
     employment,
     avgSalary,
     medSalary,
+    minimumWage: MINIMUM_WAGES,
+    salarySource,
     metadata: {
       fetchedAt: new Date().toISOString(),
       sources: {
         salary: 'OECD Average Annual Wages + Baltic national statistics',
         unemployment: 'Eurostat (une_rt_m)',
-        employment: 'Eurostat (lfsi_emp_a)'
+        employment: 'Eurostat (lfsi_emp_a)',
+        minimumWage: 'Eurostat + national sources (January 2025)'
       },
       balticOverrides: Object.fromEntries(
         Object.entries(BALTIC_OVERRIDES).map(([code, data]) => [
