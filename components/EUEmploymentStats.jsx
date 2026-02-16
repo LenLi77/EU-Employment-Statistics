@@ -8,15 +8,16 @@ import {
 import { 
   EU_COUNTRIES, 
   TAX_DATA, 
+  BALTIC_COUNTRIES,
   fetchAllEUStats, 
   getLatestValue 
-} from '../lib/eurostat';
+} from '@/lib/eurostat';
 
 // =====================================================
 // CONSTANTS
 // =====================================================
-const CACHE_KEY = 'eu_employment_stats_v2';
-const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+const CACHE_KEY = 'eu_employment_stats_v3';
+const CACHE_DURATION = 24 * 60 * 60 * 1000;
 
 // =====================================================
 // HELPERS
@@ -55,7 +56,6 @@ function useCachedEUStats() {
     setLoading(true);
     setError(null);
 
-    // Check cache first (unless forcing refresh)
     if (!forceRefresh) {
       try {
         const cached = localStorage.getItem(CACHE_KEY);
@@ -73,11 +73,8 @@ function useCachedEUStats() {
       }
     }
 
-    // Fetch fresh data
     try {
       const freshData = await fetchAllEUStats();
-      
-      // Save to cache
       try {
         localStorage.setItem(CACHE_KEY, JSON.stringify({
           data: freshData,
@@ -86,13 +83,10 @@ function useCachedEUStats() {
       } catch (e) {
         console.warn('Cache write failed:', e);
       }
-      
       setData(freshData);
       setLastUpdated(new Date());
     } catch (err) {
       setError(err.message);
-      
-      // Try to use expired cache as fallback
       try {
         const cached = localStorage.getItem(CACHE_KEY);
         if (cached) {
@@ -116,6 +110,29 @@ function useCachedEUStats() {
 }
 
 // =====================================================
+// SOURCE BADGE COMPONENT
+// =====================================================
+function SourceBadge({ source, isBaltic }) {
+  if (isBaltic) {
+    return (
+      <span style={{
+        display: 'inline-block',
+        padding: '2px 6px',
+        fontSize: '9px',
+        fontWeight: 600,
+        background: '#dbeafe',
+        color: '#1e40af',
+        borderRadius: '4px',
+        marginLeft: '4px'
+      }}>
+        {source?.split(' ')[1] || 'National'}
+      </span>
+    );
+  }
+  return null;
+}
+
+// =====================================================
 // MAIN COMPONENT
 // =====================================================
 export default function EUEmploymentStats() {
@@ -135,14 +152,22 @@ export default function EUEmploymentStats() {
       const avg = getLatestValue(data.avgSalary?.[code]);
       const med = getLatestValue(data.medSalary?.[code]);
       const tax = TAX_DATA[code];
+      const minWage = data.minimumWage?.[code];
+      const salarySource = data.salarySource?.[code] || 'OECD';
+      const isBaltic = BALTIC_COUNTRIES.includes(code);
 
       return {
         code,
         name,
+        isBaltic,
+        salarySource,
         averageSalary: avg?.value ? Math.round(avg.value) : null,
         averageSalaryYear: avg?.period,
         medianSalary: med?.value ? Math.round(med.value) : null,
         medianSalaryYear: med?.period,
+        minimumWage: minWage?.annual,
+        minimumWageMonthly: minWage?.monthly,
+        minimumWageNote: minWage?.note,
         unemploymentRate: unemp?.value,
         unemploymentPeriod: unemp?.period,
         employmentCount: emp?.value ? Math.round(emp.value * 1000) : null,
@@ -188,16 +213,16 @@ export default function EUEmploymentStats() {
       return Object.entries(historyData)
         .map(([period, value]) => ({ period, value }))
         .sort((a, b) => a.period.localeCompare(b.period))
-        .slice(-24); // Last 24 periods
+        .slice(-24);
     }
 
-    // Comparison chart for all countries
     return sortedData
       .filter(c => c[chartMetric] !== null && c[chartMetric] !== undefined)
       .map(c => ({
         name: c.code,
         fullName: c.name,
-        value: c[chartMetric]
+        value: c[chartMetric],
+        isBaltic: c.isBaltic
       }));
   }, [selectedCountry, chartMetric, tableData, sortedData]);
 
@@ -212,11 +237,11 @@ export default function EUEmploymentStats() {
   };
 
   // Sortable header component
-  const SortHeader = ({ field, children }) => (
+  const SortHeader = ({ field, children, width }) => (
     <th
       onClick={() => handleSort(field)}
       style={{
-        padding: '12px 16px',
+        padding: '12px 12px',
         textAlign: 'left',
         fontSize: '11px',
         fontWeight: 600,
@@ -226,7 +251,8 @@ export default function EUEmploymentStats() {
         cursor: 'pointer',
         userSelect: 'none',
         whiteSpace: 'nowrap',
-        background: sortField === field ? '#f3f4f6' : 'transparent'
+        background: sortField === field ? '#f3f4f6' : 'transparent',
+        width: width || 'auto'
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -260,7 +286,7 @@ export default function EUEmploymentStats() {
           }} />
           <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
           <p style={{ color: '#6b7280' }}>Loading EU employment statistics...</p>
-          <p style={{ color: '#9ca3af', fontSize: '14px', marginTop: '8px' }}>Fetching data from Eurostat</p>
+          <p style={{ color: '#9ca3af', fontSize: '14px', marginTop: '8px' }}>Fetching from OECD & Eurostat</p>
         </div>
       </div>
     );
@@ -277,7 +303,7 @@ export default function EUEmploymentStats() {
         zIndex: 10
       }}>
         <div style={{
-          maxWidth: '1200px',
+          maxWidth: '1400px',
           margin: '0 auto',
           padding: '16px 24px',
           display: 'flex',
@@ -289,37 +315,60 @@ export default function EUEmploymentStats() {
               EU Employment Statistics
             </h1>
             <p style={{ fontSize: '13px', color: '#6b7280', marginTop: '4px' }}>
-              Data from Eurostat • {lastUpdated ? `Updated ${lastUpdated.toLocaleDateString()} ${lastUpdated.toLocaleTimeString()}` : 'Loading...'}
+              Salary: OECD + Baltic national statistics • Unemployment: Eurostat • 
+              {lastUpdated ? ` Updated ${lastUpdated.toLocaleDateString()}` : ''}
             </p>
           </div>
-          <button
-            onClick={refresh}
-            disabled={loading}
-            style={{
-              padding: '10px 20px',
-              background: loading ? '#9ca3af' : '#6366f1',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              fontSize: '14px',
-              fontWeight: 500,
-              cursor: loading ? 'not-allowed' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}
-          >
-            <span style={{ 
-              display: 'inline-block',
-              animation: loading ? 'spin 1s linear infinite' : 'none'
-            }}>↻</span>
-            {loading ? 'Refreshing...' : 'Refresh Data'}
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {data?.metadata?.dataQuality && (
+              <div style={{ display: 'flex', gap: '8px', fontSize: '11px' }}>
+                <span style={{
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  background: data.metadata.dataQuality.oecdData === 'live' ? '#dcfce7' : '#fef3c7',
+                  color: data.metadata.dataQuality.oecdData === 'live' ? '#166534' : '#92400e'
+                }}>
+                  OECD: {data.metadata.dataQuality.oecdData}
+                </span>
+                <span style={{
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  background: data.metadata.dataQuality.unemploymentData === 'live' ? '#dcfce7' : '#fef3c7',
+                  color: data.metadata.dataQuality.unemploymentData === 'live' ? '#166534' : '#92400e'
+                }}>
+                  Eurostat: {data.metadata.dataQuality.unemploymentData}
+                </span>
+              </div>
+            )}
+            <button
+              onClick={refresh}
+              disabled={loading}
+              style={{
+                padding: '10px 20px',
+                background: loading ? '#9ca3af' : '#6366f1',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '14px',
+                fontWeight: 500,
+                cursor: loading ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              <span style={{ 
+                display: 'inline-block',
+                animation: loading ? 'spin 1s linear infinite' : 'none'
+              }}>↻</span>
+              {loading ? 'Refreshing...' : 'Refresh'}
+            </button>
+          </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '32px 24px' }}>
+      <main style={{ maxWidth: '1400px', margin: '0 auto', padding: '32px 24px' }}>
         {/* Error Banner */}
         {error && (
           <div style={{
@@ -387,7 +436,7 @@ export default function EUEmploymentStats() {
               <option value="unemploymentRate">Unemployment Rate</option>
               <option value="employmentCount">Employment Count</option>
               <option value="averageSalary">Average Salary</option>
-              <option value="medianSalary">Median Salary</option>
+              <option value="minimumWage">Minimum Wage (Annual)</option>
             </select>
           </div>
 
@@ -399,7 +448,7 @@ export default function EUEmploymentStats() {
                 <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip
                   formatter={(value) =>
-                    chartMetric.includes('Salary') ? formatCurrency(value) :
+                    chartMetric.includes('Salary') || chartMetric === 'minimumWage' ? formatCurrency(value) :
                     chartMetric === 'unemploymentRate' ? formatPercent(value) :
                     formatNumber(value)
                   }
@@ -419,13 +468,17 @@ export default function EUEmploymentStats() {
                 <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={40} />
                 <Tooltip
                   formatter={(value, name, props) => [
-                    chartMetric.includes('Salary') ? formatCurrency(value) :
+                    chartMetric.includes('Salary') || chartMetric === 'minimumWage' ? formatCurrency(value) :
                     chartMetric === 'unemploymentRate' ? formatPercent(value) :
                     formatNumber(value),
                     props.payload.fullName
                   ]}
                 />
-                <Bar dataKey="value" fill="#6366f1" radius={[0, 4, 4, 0]} />
+                <Bar 
+                  dataKey="value" 
+                  fill="#6366f1" 
+                  radius={[0, 4, 4, 0]}
+                />
               </BarChart>
             )}
           </ResponsiveContainer>
@@ -441,23 +494,51 @@ export default function EUEmploymentStats() {
         }}>
           <div style={{
             padding: '20px 24px',
-            borderBottom: '1px solid #e5e7eb'
+            borderBottom: '1px solid #e5e7eb',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
           }}>
-            <h2 style={{ fontSize: '18px', fontWeight: 600, color: '#111827', margin: 0 }}>
-              All EU Countries
-            </h2>
-            <p style={{ fontSize: '13px', color: '#6b7280', marginTop: '4px' }}>
-              Click on a country to see historical trends
-            </p>
+            <div>
+              <h2 style={{ fontSize: '18px', fontWeight: 600, color: '#111827', margin: 0 }}>
+                All EU Countries
+              </h2>
+              <p style={{ fontSize: '13px', color: '#6b7280', marginTop: '4px' }}>
+                Click on a country to see historical trends
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', fontSize: '12px' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span style={{ 
+                  display: 'inline-block', 
+                  width: '8px', 
+                  height: '8px', 
+                  background: '#dbeafe', 
+                  borderRadius: '2px' 
+                }}></span>
+                Baltic (National Stats)
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span style={{ 
+                  display: 'inline-block', 
+                  width: '8px', 
+                  height: '8px', 
+                  background: '#f3f4f6', 
+                  borderRadius: '2px' 
+                }}></span>
+                Other (OECD)
+              </span>
+            </div>
           </div>
 
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '1100px' }}>
               <thead style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
                 <tr>
-                  <SortHeader field="name">Country</SortHeader>
-                  <SortHeader field="averageSalary">Avg Salary (Annual)</SortHeader>
-                  <SortHeader field="medianSalary">Median Salary</SortHeader>
+                  <SortHeader field="name" width="180px">Country</SortHeader>
+                  <SortHeader field="averageSalary">Avg Salary</SortHeader>
+                  <SortHeader field="medianSalary">Median</SortHeader>
+                  <SortHeader field="minimumWage">Min Wage</SortHeader>
                   <SortHeader field="taxMax">Income Tax</SortHeader>
                   <SortHeader field="employmentCount">Employed</SortHeader>
                   <SortHeader field="unemploymentRate">Unemployment</SortHeader>
@@ -471,53 +552,97 @@ export default function EUEmploymentStats() {
                     style={{
                       borderBottom: '1px solid #f3f4f6',
                       cursor: 'pointer',
-                      background: index % 2 === 0 ? 'white' : '#f9fafb'
+                      background: country.isBaltic 
+                        ? '#f0f9ff' 
+                        : index % 2 === 0 ? 'white' : '#f9fafb'
                     }}
                     onMouseEnter={(e) => e.currentTarget.style.background = '#eef2ff'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = index % 2 === 0 ? 'white' : '#f9fafb'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = country.isBaltic 
+                      ? '#f0f9ff' 
+                      : index % 2 === 0 ? 'white' : '#f9fafb'}
                   >
-                    <td style={{ padding: '16px' }}>
+                    <td style={{ padding: '14px 12px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         <span style={{ fontSize: '24px' }}>{getFlagEmoji(country.code)}</span>
                         <div>
-                          <div style={{ fontWeight: 500, color: '#111827' }}>{country.name}</div>
-                          <div style={{ fontSize: '12px', color: '#9ca3af' }}>{country.code}</div>
+                          <div style={{ fontWeight: 500, color: '#111827', display: 'flex', alignItems: 'center' }}>
+                            {country.name}
+                            {country.isBaltic && (
+                              <span style={{
+                                marginLeft: '6px',
+                                padding: '2px 6px',
+                                fontSize: '9px',
+                                fontWeight: 600,
+                                background: '#dbeafe',
+                                color: '#1e40af',
+                                borderRadius: '4px'
+                              }}>
+                                BALTIC
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '11px', color: '#9ca3af' }}>{country.code}</div>
                         </div>
                       </div>
                     </td>
-                    <td style={{ padding: '16px' }}>
+                    <td style={{ padding: '14px 12px' }}>
                       <div style={{ fontWeight: 500 }}>{formatCurrency(country.averageSalary)}</div>
-                      {country.averageSalaryYear && (
-                        <div style={{ fontSize: '12px', color: '#9ca3af' }}>{country.averageSalaryYear}</div>
-                      )}
+                      <div style={{ fontSize: '11px', color: '#9ca3af', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        {country.averageSalaryYear}
+                        {country.isBaltic && (
+                          <span style={{ color: '#2563eb', fontWeight: 500 }}>• National</span>
+                        )}
+                      </div>
                     </td>
-                    <td style={{ padding: '16px' }}>
+                    <td style={{ padding: '14px 12px' }}>
                       <div style={{ fontWeight: 500 }}>{formatCurrency(country.medianSalary)}</div>
                       {country.medianSalaryYear && (
-                        <div style={{ fontSize: '12px', color: '#9ca3af' }}>{country.medianSalaryYear}</div>
+                        <div style={{ fontSize: '11px', color: '#9ca3af' }}>{country.medianSalaryYear}</div>
                       )}
                     </td>
-                    <td style={{ padding: '16px' }}>
+                    <td style={{ padding: '14px 12px' }}>
+                      {country.minimumWage ? (
+                        <>
+                          <div style={{ fontWeight: 500 }}>{formatCurrency(country.minimumWage)}</div>
+                          <div style={{ fontSize: '11px', color: '#9ca3af' }}>
+                            €{country.minimumWageMonthly}/mo
+                            {country.minimumWageNote && (
+                              <span style={{ marginLeft: '4px', color: '#6366f1' }}>
+                                • {country.minimumWageNote}
+                              </span>
+                            )}
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div style={{ fontWeight: 500, color: '#9ca3af' }}>—</div>
+                          <div style={{ fontSize: '11px', color: '#6366f1' }}>
+                            {country.minimumWageNote || 'No statutory min'}
+                          </div>
+                        </>
+                      )}
+                    </td>
+                    <td style={{ padding: '14px 12px' }}>
                       <div style={{ fontWeight: 500 }}>
                         {country.taxType === 'Flat'
                           ? `${country.taxMin}%`
                           : `${country.taxMin}% - ${country.taxMax}%`
                         }
                       </div>
-                      <div style={{ fontSize: '12px', color: '#9ca3af' }}>
+                      <div style={{ fontSize: '11px', color: '#9ca3af' }}>
                         {country.taxType} ({country.taxBrackets} {country.taxBrackets === 1 ? 'rate' : 'brackets'})
                       </div>
                       {country.taxNote && (
-                        <div style={{ fontSize: '12px', color: '#6366f1' }}>{country.taxNote}</div>
+                        <div style={{ fontSize: '11px', color: '#6366f1' }}>{country.taxNote}</div>
                       )}
                     </td>
-                    <td style={{ padding: '16px' }}>
+                    <td style={{ padding: '14px 12px' }}>
                       <div style={{ fontWeight: 500 }}>{formatNumber(country.employmentCount)}</div>
                       {country.employmentYear && (
-                        <div style={{ fontSize: '12px', color: '#9ca3af' }}>{country.employmentYear}</div>
+                        <div style={{ fontSize: '11px', color: '#9ca3af' }}>{country.employmentYear}</div>
                       )}
                     </td>
-                    <td style={{ padding: '16px' }}>
+                    <td style={{ padding: '14px 12px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span style={{
                           fontWeight: 500,
@@ -543,7 +668,7 @@ export default function EUEmploymentStats() {
                         </div>
                       </div>
                       {country.unemploymentPeriod && (
-                        <div style={{ fontSize: '12px', color: '#9ca3af' }}>{country.unemploymentPeriod}</div>
+                        <div style={{ fontSize: '11px', color: '#9ca3af' }}>{country.unemploymentPeriod}</div>
                       )}
                     </td>
                   </tr>
@@ -556,12 +681,47 @@ export default function EUEmploymentStats() {
         {/* Footer */}
         <div style={{
           marginTop: '32px',
-          textAlign: 'center',
-          fontSize: '13px',
-          color: '#9ca3af'
+          padding: '20px',
+          background: 'white',
+          borderRadius: '12px',
+          border: '1px solid #e5e7eb'
         }}>
-          <p>Data sources: Eurostat (une_rt_m, lfsi_emp_a, earn_ses_pub2s) • Tax rates from official government sources (2024)</p>
-          <p style={{ marginTop: '8px' }}>Salary data from Structure of Earnings Survey (updated every 4 years)</p>
+          <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#111827', marginBottom: '12px' }}>
+            Data Sources
+          </h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '16px', fontSize: '13px', color: '#6b7280' }}>
+            <div>
+              <strong>Average Salary:</strong> OECD Average Annual Wages (most EU countries), 
+              Baltic national statistics offices (EE, LV, LT)
+            </div>
+            <div>
+              <strong>Unemployment:</strong> Eurostat (une_rt_m) - Monthly, seasonally adjusted
+            </div>
+            <div>
+              <strong>Employment:</strong> Eurostat (lfsi_emp_a) - Annual labour force survey
+            </div>
+            <div>
+              <strong>Minimum Wage:</strong> Eurostat + national sources (January 2025)
+            </div>
+            <div>
+              <strong>Income Tax:</strong> Official government sources (2024 rates)
+            </div>
+          </div>
+          
+          {data?.metadata?.balticOverrides && (
+            <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #e5e7eb' }}>
+              <h4 style={{ fontSize: '13px', fontWeight: 600, color: '#111827', marginBottom: '8px' }}>
+                Baltic Data Updates
+              </h4>
+              <div style={{ display: 'flex', gap: '24px', fontSize: '12px', color: '#6b7280' }}>
+                {Object.entries(data.metadata.balticOverrides).map(([code, info]) => (
+                  <div key={code}>
+                    <strong>{EU_COUNTRIES[code]}:</strong> {info.source} ({info.period}) - Updated {info.lastUpdated}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </main>
     </div>
