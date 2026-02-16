@@ -11,7 +11,7 @@ import {
   BALTIC_COUNTRIES,
   fetchAllEUStats, 
   getLatestValue 
-} from '@/lib/eurostat';
+} from '../lib/eurostat';
 
 // =====================================================
 // CONSTANTS
