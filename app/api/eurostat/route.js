@@ -9,11 +9,11 @@ import { NextResponse } from 'next/server';
 // =====================================================
 const BALTIC_OVERRIDES = {
   EE: {
-    avgSalary: 23280,      // Update from stat.ee - Q3 2024: €1940/month * 12
-    medSalary: 18720,      // Update from stat.ee
+    avgSalary: 24900,      // Update from stat.ee - Q3 2025: €2075/month * 12
+    medSalary: 20664,      // Update from stat.ee - Q3 2025: €1722/month * 12
     source: 'Statistics Estonia',
-    period: '2024-Q3',
-    lastUpdated: '2025-01-15'
+    period: '2025-Q3',
+    lastUpdated: '2026-02-17'
   },
   LV: {
     avgSalary: 19560,      // Update from csb.gov.lv - Q3 2024: €1630/month * 12
