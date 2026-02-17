@@ -16,11 +16,11 @@ const BALTIC_OVERRIDES = {
     lastUpdated: '2026-02-17'
   },
   LV: {
-    avgSalary: 19560,      // Update from csb.gov.lv - Q3 2024: €1630/month * 12
-    medSalary: 14880,      // Update from csb.gov.lv
+    avgSalary: 22020,      // Update from csb.gov.lv - Q3 2025: €1835/month * 12
+    medSalary: 17856,      // Update from csb.gov.lv
     source: 'Central Statistical Bureau of Latvia',
-    period: '2024-Q3',
-    lastUpdated: '2025-01-15'
+    period: '2025-Q3',
+    lastUpdated: '2026-02-17'
   },
   LT: {
     avgSalary: 24000,      // Update from stat.gov.lt - Q3 2024: €2000/month * 12
