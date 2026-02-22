@@ -9,18 +9,18 @@ import { NextResponse } from 'next/server';
 // =====================================================
 const BALTIC_OVERRIDES = {
   EE: {
-    avgSalary: 24900,      // Update from stat.ee - Q3 2025: €2075/month * 12
-    medSalary: 20664,      // Update from stat.ee - Q3 2025: €1722/month * 12
+    avgSalary: 23280,      // Update from stat.ee - Q3 2024: €1940/month * 12
+    medSalary: 18720,      // Update from stat.ee
     source: 'Statistics Estonia',
-    period: '2025-Q3',
-    lastUpdated: '2026-02-17'
+    period: '2024-Q3',
+    lastUpdated: '2025-01-15'
   },
   LV: {
-    avgSalary: 22020,      // Update from csb.gov.lv - Q3 2025: €1835/month * 12
-    medSalary: 17856,      // Update from csb.gov.lv
+    avgSalary: 19560,      // Update from csb.gov.lv - Q3 2024: €1630/month * 12
+    medSalary: 14880,      // Update from csb.gov.lv
     source: 'Central Statistical Bureau of Latvia',
-    period: '2025-Q3',
-    lastUpdated: '2026-02-17'
+    period: '2024-Q3',
+    lastUpdated: '2025-01-15'
   },
   LT: {
     avgSalary: 24000,      // Update from stat.gov.lt - Q3 2024: €2000/month * 12
@@ -38,21 +38,21 @@ const BALTIC_OVERRIDES = {
 // Note: Some countries have no statutory minimum wage
 // =====================================================
 const MINIMUM_WAGES = {
-  AT: { monthly: null, annual: null, note: 'Collective agreements (~€1,850/mo)' },
+  AT: { monthly: null, annual: null, note: 'Collective ~€1,850/mo', effective: 1850 },
   BE: { monthly: 1994, annual: 23928 },
   BG: { monthly: 477, annual: 5724 },
   HR: { monthly: 840, annual: 10080 },
   CY: { monthly: 1000, annual: 12000, note: 'Since 2023' },
   CZ: { monthly: 700, annual: 8400 },
-  DK: { monthly: null, annual: null, note: 'Collective agreements (~€3,000/mo)' },
+  DK: { monthly: null, annual: null, note: 'Collective ~€3,000/mo', effective: 3000 },
   EE: { monthly: 886, annual: 10632 },
-  FI: { monthly: null, annual: null, note: 'Collective agreements' },
+  FI: { monthly: null, annual: null, note: 'Collective ~€1,800/mo', effective: 1800 },
   FR: { monthly: 1802, annual: 21624 },
   DE: { monthly: 2054, annual: 24648, note: '€12.82/hr' },
   EL: { monthly: 910, annual: 10920 },
   HU: { monthly: 675, annual: 8100 },
   IE: { monthly: 2146, annual: 25752, note: '€13.50/hr' },
-  IT: { monthly: null, annual: null, note: 'Collective agreements' },
+  IT: { monthly: null, annual: null, note: 'Collective ~€1,200/mo', effective: 1200 },
   LV: { monthly: 700, annual: 8400 },
   LT: { monthly: 924, annual: 11088 },
   LU: { monthly: 2571, annual: 30852, note: 'Highest in EU' },
@@ -64,7 +64,7 @@ const MINIMUM_WAGES = {
   SK: { monthly: 816, annual: 9792 },
   SI: { monthly: 1253, annual: 15036 },
   ES: { monthly: 1323, annual: 15876 },
-  SE: { monthly: null, annual: null, note: 'Collective agreements' }
+  SE: { monthly: null, annual: null, note: 'Collective ~€2,200/mo', effective: 2200 }
 };
 
 // =====================================================
