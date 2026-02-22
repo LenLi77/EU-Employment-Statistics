@@ -11,7 +11,7 @@ import {
   BALTIC_COUNTRIES,
   fetchAllEUStats, 
   getLatestValue 
-} from '../lib/eurostat';
+} from '@/lib/eurostat';
 
 // =====================================================
 // CONSTANTS
@@ -168,6 +168,7 @@ export default function EUEmploymentStats() {
         minimumWage: minWage?.annual,
         minimumWageMonthly: minWage?.monthly,
         minimumWageNote: minWage?.note,
+        minimumWageEffective: minWage?.effective,
         unemploymentRate: unemp?.value,
         unemploymentPeriod: unemp?.period,
         employmentCount: emp?.value ? Math.round(emp.value * 1000) : null,
@@ -605,12 +606,21 @@ export default function EUEmploymentStats() {
                         <>
                           <div style={{ fontWeight: 500 }}>{formatCurrency(country.minimumWage)}</div>
                           <div style={{ fontSize: '11px', color: '#9ca3af' }}>
-                            €{country.minimumWageMonthly}/mo
+                            €{country.minimumWageMonthly?.toLocaleString()}/mo
                             {country.minimumWageNote && (
                               <span style={{ marginLeft: '4px', color: '#6366f1' }}>
                                 • {country.minimumWageNote}
                               </span>
                             )}
+                          </div>
+                        </>
+                      ) : country.minimumWageEffective ? (
+                        <>
+                          <div style={{ fontWeight: 500, color: '#6b7280', fontStyle: 'italic' }}>
+                            ~€{(country.minimumWageEffective * 12).toLocaleString()}
+                          </div>
+                          <div style={{ fontSize: '11px', color: '#6366f1' }}>
+                            {country.minimumWageNote}
                           </div>
                         </>
                       ) : (
