@@ -45,7 +45,7 @@ const MINIMUM_WAGES = {
   CY: { monthly: 1000, annual: 12000, note: 'Since 2023' },
   CZ: { monthly: 700, annual: 8400 },
   DK: { monthly: null, annual: null, note: 'Collective ~€3,000/mo', effective: 3000 },
-  EE: { monthly: 886, annual: 10632 },
+  EE: { monthly: 946, annual: 11352 },
   FI: { monthly: null, annual: null, note: 'Collective ~€1,800/mo', effective: 1800 },
   FR: { monthly: 1802, annual: 21624 },
   DE: { monthly: 2054, annual: 24648, note: '€12.82/hr' },
